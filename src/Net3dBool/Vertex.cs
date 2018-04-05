@@ -1,37 +1,16 @@
-﻿/*
-The MIT License (MIT)
-
-Copyright (c) 2014 Sebastian Loncar
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-See:
-D. H. Laidlaw, W. B. Trumbore, and J. F. Hughes.
-"Constructive Solid Geometry for Polyhedral Objects"
-SIGGRAPH Proceedings, 1986, p.161.
-
-original author: Danilo Balby Silva Castanheira (danbalby@yahoo.com)
-
-Ported from Java to C# by Sebastian Loncar, Web: http://loncar.de
-Optomized and refactored by: Lars Brubaker (larsbrubaker@matterhackers.com)
-Project: https://github.com/MatterHackers/agg-sharp (an included library)
-*/
+﻿/** 
+ * Represents of a 3d face vertex.
+ * 
+ * <br><br>See: 
+ * D. H. Laidlaw, W. B. Trumbore, and J. F. Hughes.  
+ * "Constructive Solid Geometry for Polyhedral Objects" 
+ * SIGGRAPH Proceedings, 1986, p.161. 
+ * 
+ * original author: Danilo Balby Silva Castanheira (danbalby@yahoo.com)
+ * 
+ * Ported from Java to C# by Sebastian Loncar, Web: http://loncar.de
+ * Project: https://github.com/Arakis/Net3dBool
+ */
 
 using System;
 using System.Collections;
@@ -39,19 +18,32 @@ using System.Collections.Generic;
 
 namespace Net3dBool
 {
-	/// <summary>
-	/// Represents of a 3d face vertex.
-	/// </summary>
-	public class Vertex
+    public class Vertex
     {
-		public Vector3 Position;
+        /** vertex coordinate in X */
+        public double x;
+        /** vertex coordinate in Y */
+        public double y;
+        /** vertex coordinate in Z */
+        public double z;
         /** references to vertices conected to it by an edge  */
         private List<Vertex> adjacentVertices;
         /** vertex status relative to other object */
-        private Status status;
+        private int status;
+        /** vertex color */
+        private Color3f color;
 
         /** tolerance value to test equalities */
-        private readonly static double EqualityTolerance = 1e-5f;
+        private static  double TOL = 1e-5f;
+
+        /** vertex status if it is still unknown */
+        public static  int UNKNOWN = 1;
+        /** vertex status if it is inside a solid */
+        public static  int INSIDE = 2;
+        /** vertex status if it is outside a solid */
+        public static  int OUTSIDE = 3;
+        /** vertex status if it on the boundary of a solid */
+        public static int BOUNDARY = 4;
 
         //----------------------------------CONSTRUCTORS--------------------------------//
 
@@ -59,13 +51,18 @@ namespace Net3dBool
      * Constructs a vertex with unknown status
      * 
      * @param position vertex position
+     * @param color vertex color
      */
-        public Vertex(Vector3 position)
+        public Vertex(Point3d position, Color3f color)
         {
-            this.Position = position;
+            this.color = color.Clone();
+
+            x = position.x;
+            y = position.y;
+            z = position.z;
 
             adjacentVertices = new List<Vertex>();
-            status = Status.UNKNOWN;
+            status = UNKNOWN;
         }
 
         /**
@@ -74,62 +71,78 @@ namespace Net3dBool
      * @param x coordinate on the x axis
      * @param y coordinate on the y axis
      * @param z coordinate on the z axis
+     * @param color vertex color
      */
-        public Vertex(double x, double y, double z)
+        public Vertex(double x, double y, double z, Color3f color)
         {
-			this.Position.x = x;
-			this.Position.y = y;
-			this.Position.z = z;
+            this.color = color.Clone();
+
+            this.x = x;
+            this.y = y;
+            this.z = z;
 
             adjacentVertices = new List<Vertex>();
-            status = Status.UNKNOWN;
+            status = UNKNOWN;
         }
 
-		/// <summary>
-		/// Constructs a vertex with definite status
-		/// </summary>
-		/// <param name="position">vertex position</param>
-		/// <param name="status">vertex status - UNKNOWN, BOUNDARY, INSIDE or OUTSIDE</param>
-		public Vertex(Vector3 position, Status status)
+        /**
+     * Constructs a vertex with definite status
+     * 
+     * @param position vertex position
+     * @param color vertex color
+     * @param status vertex status - UNKNOWN, BOUNDARY, INSIDE or OUTSIDE
+     */
+        public Vertex(Point3d position, Color3f color, int status)
         {
-            Position.x = position.x;
-			Position.y = position.y;
-			Position.z = position.z;
+            this.color = color.Clone();
 
-            adjacentVertices = new List<Vertex>();
-            this.status = status;
-        }
-
-		/// <summary>
-		/// Constructs a vertex with a definite status
-		/// </summary>
-		/// <param name="x">coordinate on the x axis</param>
-		/// <param name="y">coordinate on the y axis</param>
-		/// <param name="z">coordinate on the z axis</param>
-		/// <param name="status">vertex status - UNKNOWN, BOUNDARY, INSIDE or OUTSIDE</param>
-		public Vertex(double x, double y, double z, Status status)
-        {
-			this.Position = new Vector3(x, y, z);
+            x = position.x;
+            y = position.y;
+            z = position.z;
 
             adjacentVertices = new List<Vertex>();
             this.status = status;
         }
 
-		/// <summary>
-		/// Default constructor
-		/// </summary>
+        /**
+     * Constructs a vertex with a definite status
+     * 
+     * @param x coordinate on the x axis
+     * @param y coordinate on the y axis
+     * @param z coordinate on the z axis
+     * @param color vertex color
+     * @param status vertex status - UNKNOWN, BOUNDARY, INSIDE or OUTSIDE
+     */
+        public Vertex(double x, double y, double z, Color3f color, int status)
+        {
+            this.color = color.Clone();
+
+            this.x = x;
+            this.y = y;
+            this.z = z;
+
+            adjacentVertices = new List<Vertex>();
+            this.status = status;
+        }
+
         private Vertex()
         {
-		}
+        }
 
-		/// <summary>
-		/// Clones the vertex object
-		/// </summary>
-		/// <returns>cloned vertex object</returns>
-		public Vertex Clone()
+        //-----------------------------------OVERRIDES----------------------------------//
+
+        /**
+     * Clones the vertex object
+     * 
+     * @return cloned vertex object
+     */
+        public Vertex Clone()
         {
             Vertex clone = new Vertex();
-            clone.Position = Position;
+            clone.x = x;
+            clone.y = y;
+            clone.z = z;
+            clone.color = color.Clone();
             clone.status = status;
             clone.adjacentVertices = new List<Vertex>();
             for (int i = 0; i < adjacentVertices.Count; i++)
@@ -147,35 +160,36 @@ namespace Net3dBool
      */
         public String toString()
         {
-            return "(" + Position.x + ", " + Position.y + ", " + Position.z + ")";
+            return "(" + x + ", " + y + ", " + z + ")";
         }
 
         /**
      * Checks if an vertex is equal to another. To be equal, they have to have the same
-     * coordinates(with some tolerance)
+     * coordinates(with some tolerance) and color
      * 
      * @param anObject the other vertex to be tested
      * @return true if they are equal, false otherwise. 
      */
-        public bool Equals(Vertex vertex)
+        public bool equals(Vertex vertex)
         {
-			return Position.Equals(vertex.Position, EqualityTolerance);
+            return  Math.Abs(x - vertex.x) < TOL && Math.Abs(y - vertex.y) < TOL
+            && Math.Abs(z - vertex.z) < TOL && color.Equals(vertex.color);          
         }
 
-		//--------------------------------------SETS------------------------------------//
+        //--------------------------------------SETS------------------------------------//
 
-		/**
+        /**
      * Sets the vertex status
      * 
      * @param status vertex status - UNKNOWN, BOUNDARY, INSIDE or OUTSIDE
      */
-		public void SetStatus(Status status)
-		{
-			if (status >= Status.UNKNOWN && status <= Status.BOUNDARY)
-			{
-				this.status = status;
-			}
-		}
+        public void setStatus(int status)
+        {
+            if (status >= UNKNOWN && status <= BOUNDARY)
+            {
+                this.status = status;   
+            }
+        }
 
         //--------------------------------------GETS------------------------------------//
 
@@ -184,9 +198,9 @@ namespace Net3dBool
      * 
      * @return vertex position
      */
-        public Vector3 GetPosition()
+        public Point3d getPosition()
         {
-			return Position;
+            return new Point3d(x, y, z);
         }
 
         /**
@@ -194,7 +208,7 @@ namespace Net3dBool
      * 
      * @return array of the adjacent vertices 
      */
-        public Vertex[] GetAdjacentVertices()
+        public Vertex[] getAdjacentVertices()
         {
             Vertex[] vertices = new Vertex[adjacentVertices.Count];
             for (int i = 0; i < adjacentVertices.Count; i++)
@@ -209,9 +223,19 @@ namespace Net3dBool
      * 
      * @return vertex status - UNKNOWN, BOUNDARY, INSIDE or OUTSIDE
      */ 
-        public Status GetStatus()
+        public int getStatus()
         {
             return status;
+        }
+
+        /**
+     * Gets the vertex color
+     * 
+     * @return vertex color
+     */
+        public Color3f getColor()
+        {
+            return color.Clone();
         }
 
         //----------------------------------OTHERS--------------------------------------//
@@ -221,7 +245,7 @@ namespace Net3dBool
      * 
      * @param adjacentVertex an adjacent vertex
      */
-        public void AddAdjacentVertex(Vertex adjacentVertex)
+        public void addAdjacentVertex(Vertex adjacentVertex)
         {
             if (!adjacentVertices.Contains(adjacentVertex))
             {
@@ -234,18 +258,18 @@ namespace Net3dBool
      * 
      * @param status new status to be set
      */
-        public void Mark(Status status)
+        public void mark(int status)
         {
             //mark vertex
             this.status = status;
 
             //mark adjacent vertices
-            Vertex[] adjacentVerts = GetAdjacentVertices();
+            Vertex[] adjacentVerts = getAdjacentVertices();
             for (int i = 0; i < adjacentVerts.Length; i++)
             {
-                if (adjacentVerts[i].GetStatus() == Status.UNKNOWN)
+                if (adjacentVerts[i].getStatus() == Vertex.UNKNOWN)
                 {
-                    adjacentVerts[i].Mark(status);
+                    adjacentVerts[i].mark(status);
                 }
             }
         }
